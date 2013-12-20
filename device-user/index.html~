@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script type="text/javascript" src="./js/jquery-1.8.2.min.js" ></script>
+    <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true&language=en"></script>
+    <script type="text/javascript" src="/webinos.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" type="text/css" href="./css/main.css" />
+    <meta name="viewport" content="width=device-width, user-scalable=no">
+  <body>
+    <h1 id="abc">Webinos Demo - Normal Employer</h1>
+
+    <div class="row" style="margin-top:30px">
+          <h3 id="normal_indication"> Normal state</h3> 
+    </div>
+
+    <div class="row" id = "normal_panel"  style="margin-top:30px">
+	<div class="span8" >
+		<h3>View connected people</h3>
+		<div class="span4">
+			<div>
+				<h2>office staff :</h2>
+				<select id="pzhList" size="3" style="width:100%;" > <option> </option> </select><br>
+			</div>
+		</div>
+		<div style="margin-top:80px;">
+			<button id="connectBtn" >connect to PZH</button>
+		</div>
+	</div>
+
+        <div class="span4">
+              <div class="conditions" >
+		    <h3>Fire alert rules</h3> 
+                    <table class="table table-striped" >
+                        <tr class="condition" data-type="temp">
+                            <td  style="vertical-align:middle;"><h4>Temperature</h4><small id="value1"></small></td>
+                            <td style="vertical-align:middle;">
+			    <select name="items" class="option">
+                               <option value="">    > </option>
+                               <option value="">    = </option>
+                               <option value="">    < </option>
+                            </select>						
+			</td>
+
+                        <td  style="vertical-align:middle;"><h4>&nbsp; <input id="input1"  type="text" value='40' class="sensor span2" placeholder="40"></h4></td>
+                        </tr>
+						
+                        <tr class="condition" data-type="hum">
+                        <td  style="vertical-align:middle;"><h4>Humidity</h4><small id="value1"></small></td>
+                        <td style="vertical-align:middle;">
+			<select name="items" class="option">
+                            <option value="">    > </option>
+                            <option value="">    = </option>
+                            <option value="">    < </option>
+                        </select>						
+						</td>
+                        <td width="30%" style="vertical-align:middle;"><h4>&nbsp; <input id="input2" style="margin-top:15px;" type="text" value='24' class="sensor span2" placeholder="24"></h4></td>
+                        </tr>						
+                    </table>
+                    <h2>Action</h2>
+                    <div>  show the manager 's plan </div>
+ 		    <button  id="save">Save</button>
+              </div>
+            </div>
+   </div>
+
+    <div class="row" id = "emergency_panel" style="margin-top:30px">
+        
+        <div class="row"> 
+             <div class="span5 offset2"> 
+                <h3> Evacuation plan </h3>
+                <div id="plan" class="span5" style="background-color: #eeeeee;">  </div>
+                <img src="http://www.precisionfloorplan.com/wp-content/uploads/2008/08/emergency-evac-chart-img.jpg"> </img>
+             </div>
+             <table class="span4 offset2" style="backgroundColor:#ffffff">
+                <h3 style="margin-left:800px"> Sensor list </h3> 
+                <div id="sensor_list" class="offset10"> </div>
+             </table> 
+        </div>
+
+   </div>
+
+<script>
+$(document).ready(function() {	
+   $('#normal_indication').css('backgroundColor','#5EC55E');
+   $('#emergency_panel').hide();
+   $('#connectBtn').click(function(e){
+      initializeWebinos();
+   })
+   
+
+})
+//////////////////
+var ss = false;
+$("#abc").click(function(e){
+   ss = true;
+   console.log('abc');
+       $('#plan').text(event.plan);
+       $('#normal_indication').css('backgroundColor','#D54A4A');
+       $('#normal_indication').text('EMERGENCY STATE');
+       $('#emergency_panel').show();
+       $('#normal_panel').hide();
+})
+
+function initializeWebinos(){
+    webinos.session.addListener('registeredBrowser', function (data) {
+        console.log('in the session');
+	   myPzp = data.from;
+           
+       if (!data.payload.message.enrolled){
+            console.log('in the virgin mode');
+        }else if (data.payload.message.state.Pzh !== "connected"){
+            console.log('pzh is offline');            
+        }else {
+            console.log('in the app ');
+            //searchSensors();
+            findPZHs();
+            bindToAppService();
+
+        }        
+    });
+
+    if(webinos.session.getSessionId()!=null){
+        webinos.session.message_send({type: 'prop', payload: {status:'registerBrowser'}});
+    }
+}
+     
+function findPZHs() {
+       //logWebinos();
+       $('#pzhList').empty();
+       $('#pzpList').empty();
+       for(var i=0;i<webinos.session.getConnectedDevices().length;i++)
+           $('#pzhList').append($('<option id="' + webinos.session.getConnectedDevices()[i].id + '">' + webinos.session.getConnectedDevices()[i].id.replace(/[^_]*_/gi, '').replace(/\/[A-Za-z0-9]*$/gi, '') + '</option>'));       
+
+}
+
+
+var eventService = null;
+
+var callback = {};
+
+callback.onSending = function(event, recipient) {
+        //params.event, params.recipient
+        console.log("onSending() to " + recipient);
+};
+callback.onCaching = function(event) {
+        //params.event
+        console.log("onCaching()");
+};
+callback.onDelivery = function(event, recipient) {
+        //params.event, params.recipient
+        console.log("onDelivery() at " + recipient);
+};
+callback.onTimeout = function(event, recipient) {
+        //params.event, params.recipient
+        console.log("onTimeout()");
+};
+callback.onError = function(event, recipient, error) {
+        //params.event, params.recipient, params.error
+        console.log("onError()" + error + " recipient: " + recipient);
+};
+
+
+
+function bindToAppService(){
+    console.log('bind to app service');
+    webinos.discovery.findServices(new ServiceType("http://webinos.org/api/events"), {
+                onFound:function (service) {
+                    // If this is the local pzh
+                    console.log("serviceid:",service.serviceAddress +"   pzhid:"+webinos.session.getPZHId()+"  "+service.myAppID);
+                    //if (service.serviceAddress == webinos.session.getPZHId())
+                        eventService = service;
+                        service.bindService({
+                            onBind:function () {
+                                eventService = service;
+                                console.log("Bound service: " + eventService.serviceAddress);
+                                console.log("My App ID: " + eventService.myAppID);
+                                addHandlers(); 
+                                
+                            }
+                        });
+
+                  
+                }, onError:function (error) {
+                    console.log("Error: " + error.message + " (Code: #" + error.code + ")");
+                }
+   });
+}
+
+
+function addHandlers() {
+   console.log("adding handlers");
+   eventService.addWebinosEventListener(onReceiveState, "com.connected.webinos.state");
+   eventService.addWebinosEventListener(onReceiveSensor, "com.connected.webinos.sensor");
+}
+
+function onReceiveState(msg){
+   var event = JSON.parse(msg.payload);
+   console.log('onReceiveState  event  ',event.state);
+   if(event.state=='normal' ){
+       $('#normal_indication').css('backgroundColor','#5EC55E');
+       $('#normal_indication').text('NORMAL STATE');
+       $('#emergency_panel').hide();
+       $('#normal_panel').show();       
+   }else if (event.state == 'emergency'){
+       console.log('-------------',event.plan); 
+       $('#plan').text(event.plan);
+       $('#normal_indication').css('backgroundColor','#D54A4A');
+       $('#normal_indication').text('EMERGENCY STATE');
+       $('#emergency_panel').show();
+       $('#normal_panel').hide();
+   } 
+}
+
+function onReceiveSensor(msg){
+   var data = JSON.parse(msg.payload);
+   console.log('onReceiveSensor  event  ',data.sensors,data.sensors.length);
+
+   $('#sensor_list').html('');
+   for(var i=0;i<data.sensors.length;i++){
+      var sensor = data.sensors[i];
+      console.log(sensor.id,sensor.value,sensor.type);
+      //////////////////////////////////
+      var s = $('<tr><td style="vertical-align:middle;"><h3>'+ sensor.type+'</h3><small id="value1">'+sensor.id+'</small></td><td style="vertical-align:middle;"><h4>&nbsp;<span id="temp0" class="label label-success">'+ (sensor.value+ Math.floor((Math.random()*10)+1)/10  )+'</span></h4></ td> </tr>');
+      $('#sensor_list').append(s); 
+   }
+                                                          
+}
+
+
+
+
+
+
+</script>
+
+
+  </body>
+</html>
+
